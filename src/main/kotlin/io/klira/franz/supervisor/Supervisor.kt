@@ -16,6 +16,7 @@ class Supervisor : Runnable {
         fun spawnInThread() : Pair<Supervisor, Thread> {
             val s = Supervisor()
             val th = Thread(s)
+            th.name = "Supervisor"
             th.start()
             return s to th
         }
@@ -25,7 +26,7 @@ class Supervisor : Runnable {
                                        val nWorkers: Int = 1)
     private data class WorkerRuntimeInfo(val worker: Worker, val consumer: Consumer, val thread: Thread)
     private data class WorkerTableEntry(val proto: WorkerPrototype, val entries: List<WorkerRuntimeInfo>)
-
+    private var workerId = 1
     private val dataLock = ReentrantLock()
     private var data = mutableListOf<WorkerTableEntry>()
     private val shouldRun = AtomicBoolean(true)
@@ -52,6 +53,7 @@ class Supervisor : Runnable {
         val cons = Consumer(worker, wp.createPlugins())
         logger.info { "Spawning new worker for ${wp.workerClass.name}" }
         val th = Thread(cons)
+        th.name = "Worker-${workerId++}"
         th.start()
         return WorkerRuntimeInfo(worker, cons, th)
     }
