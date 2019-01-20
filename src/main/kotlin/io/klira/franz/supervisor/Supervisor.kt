@@ -24,8 +24,10 @@ class Supervisor : Runnable {
                                        val createPlugins: () -> List<ConsumerPlugin>,
                                        val nWorkers: Int = 1)
     private data class WorkerRuntimeInfo(val worker: Worker, val consumer: Consumer, val thread: Thread)
+    private data class WorkerTableEntry(val proto: WorkerPrototype, val entries: List<WorkerRuntimeInfo>)
+
     private val dataLock = ReentrantLock()
-    private var data = mutableMapOf<WorkerPrototype, List<WorkerRuntimeInfo>>()
+    private var data = mutableListOf<WorkerTableEntry>()
     private val shouldRun = AtomicBoolean(true)
     private val shutdownHook = Thread {
         stopGracefully()
@@ -33,8 +35,11 @@ class Supervisor : Runnable {
     fun <T : Worker> createPrototype(workerClass: Class<T>, createPlugins: () -> List<ConsumerPlugin>) {
         dataLock.lock()
         try {
-            val wp = WorkerPrototype(workerClass, createPlugins)
-            data[wp] = emptyList()
+            data.add(
+                    WorkerTableEntry(
+                            WorkerPrototype(workerClass, createPlugins),
+                            emptyList()
+                    ))
         } finally {
             dataLock.unlock()
         }
@@ -66,11 +71,11 @@ class Supervisor : Runnable {
                 Thread.sleep(500)
             }
             logger.info { "Supervisor shutdown processing begining, unscheduling all workers" }
-            data = data.mapKeys { (k, v) ->
-                k.copy(nWorkers = 0)
-            }.toMutableMap()
+            data = data.map {
+                it.copy(proto = it.proto.copy(nWorkers = 0))
+            }.toMutableList()
             update()
-            data.forEach { k, v ->
+            data.forEach { (k, v) ->
                 v.forEach { (_, _, th) ->
                     th.join()
                 }
@@ -88,17 +93,19 @@ class Supervisor : Runnable {
     private fun update() {
         val newData = data
                 // PHASE 1: Find dead workers and remove them.
-                .mapValues { (proto, actual) ->
-                    actual.filter { (_, _, th) -> th.isAlive }.also {
+                .map {
+                    val (proto, actual) = it
+                    it.copy(entries = actual.filter { (_, _, th) -> th.isAlive }.also {
                         val deadThreads = actual.size - it.size
                         if (deadThreads > 0) {
                             logger.info { "Found ${actual.size - it.size} dead threads" }
                         }
-                    }
+                    })
                 }
                 // PHASE 2: Find superfluous workers and gently ask them to remove themselves.
-                .mapValues { (proto, actual) ->
-                    actual.drop(proto.nWorkers)
+                .map {
+                    val (proto, actual) = it
+                    proto to actual.drop(proto.nWorkers)
                             .also {
                                 if (it.isNotEmpty()) {
                                     logger.info { "Found ${it.size} superfluous workers" }
@@ -107,14 +114,15 @@ class Supervisor : Runnable {
                             .forEach { (_worker, consumer, _th) ->
                                 consumer.stopGracefully()
                             }
-                    actual
+                    it
                 }
                 // PHASE 3: Find prototypes that are missing workers and create those.
-                .mapValues { (proto, actual) ->
+                .map {
+                    val (proto, actual) = it
                     val toSpawn = Math.min(proto.nWorkers - actual.size, 0)
                     val spawned = (0..toSpawn).map { spawn(proto) }
-                    actual + spawned
+                    it.copy(entries = actual + spawned)
                 }
-        data = newData.toMutableMap()
+        data = newData.toMutableList()
     }
 }
