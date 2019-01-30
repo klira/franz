@@ -4,6 +4,9 @@ import io.klira.franz.Worker
 import io.klira.franz.engine.Consumer
 import io.klira.franz.engine.ConsumerPlugin
 import mu.KotlinLogging
+import java.lang.Exception
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.LinkedBlockingQueue
 
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
@@ -23,15 +26,21 @@ class Supervisor : Runnable {
     }
     private data class WorkerPrototype(val workerClass: Class<*>,
                                        val createPlugins: () -> List<ConsumerPlugin>,
-                                       val nWorkers: Int = 1)
+                                       val nWorkers: Int = 1) {
+        fun name(): String = workerClass.name
+    }
     private data class WorkerRuntimeInfo(val worker: Worker, val consumer: Consumer, val thread: Thread)
-    private data class WorkerTableEntry(val proto: WorkerPrototype, val entries: List<WorkerRuntimeInfo>)
+    private data class WorkerTableEntry(val proto: WorkerPrototype, val entries: List<WorkerRuntimeInfo>, val crashes: Int= 0, val exits: Int = 0)
     private var workerId = 1
     private val dataLock = ReentrantLock()
     private var data = mutableListOf<WorkerTableEntry>()
     private val shouldRun = AtomicBoolean(true)
+    private val crashes = ConcurrentHashMap<Thread, Throwable>()
     private val shutdownHook = Thread {
         stopGracefully()
+    }
+    private val consumerExceptionHandler = Thread.UncaughtExceptionHandler { th, ex ->
+        crashes[th] = ex
     }
     fun <T : Worker> createPrototype(workerClass: Class<T>, createPlugins: () -> List<ConsumerPlugin>) {
         dataLock.lock()
@@ -51,9 +60,10 @@ class Supervisor : Runnable {
         // can only be done using a method taking subclassses of worker
         val worker = wp.workerClass.newInstance() as Worker
         val cons = Consumer(worker, wp.createPlugins())
-        logger.info { "Spawning new worker for ${wp.workerClass.name}" }
+        logger.info { "Spawning new worker for ${wp.name()}" }
         val th = Thread(cons)
         th.name = "Worker-${workerId++}"
+        th.uncaughtExceptionHandler = consumerExceptionHandler
         th.start()
         return WorkerRuntimeInfo(worker, cons, th)
     }
@@ -92,39 +102,77 @@ class Supervisor : Runnable {
         this.shouldRun.lazySet(false)
     }
 
+    private var crashingTicks = 0
     private fun update() {
+        val oldCrashes = data.sumBy { it.crashes }
         val newData = data
                 // PHASE 1: Find dead workers and remove them.
                 .map {
-                    val (proto, actual) = it
-                    it.copy(entries = actual.filter { (_, _, th) -> th.isAlive }.also {
-                        val deadThreads = actual.size - it.size
-                        if (deadThreads > 0) {
-                            logger.info { "Found ${actual.size - it.size} dead threads" }
-                        }
-                    })
+                    cleanupDeadWorkers(it)
                 }
                 // PHASE 2: Find superfluous workers and gently ask them to remove themselves.
                 .map {
-                    val (proto, actual) = it
-                    proto to actual.drop(proto.nWorkers)
-                            .also {
-                                if (it.isNotEmpty()) {
-                                    logger.info { "Found ${it.size} superfluous workers" }
-                                }
-                            }
-                            .forEach { (_worker, consumer, _th) ->
-                                consumer.stopGracefully()
-                            }
-                    it
+                    shutdownSuperfluousWorkers(it)
                 }
                 // PHASE 3: Find prototypes that are missing workers and create those.
                 .map {
-                    val (proto, actual) = it
-                    val toSpawn = Math.min(proto.nWorkers - actual.size, 0)
-                    val spawned = (0..toSpawn).map { spawn(proto) }
-                    it.copy(entries = actual + spawned)
+                    spawnRequiredWorkers(it)
                 }
         data = newData.toMutableList()
+        val newCrashes = data.sumBy { it.crashes }
+        val crashDelta = (newCrashes - oldCrashes)
+        if (crashDelta > 0) {
+            crashingTicks += 1
+        } else if (crashingTicks > 0) {
+            // Reduce the counter when we have a crash free tick
+            crashingTicks -= 1
+        }
+
+        if (crashingTicks > 5) {
+            logger.error { "${crashingTicks} crashing ticks, shutting down thex supervisor" }
+            stopGracefully()
+        }
     }
+
+    private fun spawnRequiredWorkers(it: WorkerTableEntry): WorkerTableEntry {
+        val (proto, actual) = it
+        val toSpawn = Math.min(proto.nWorkers - actual.size, 0)
+        val spawned = (0..toSpawn).map { spawn(proto) }
+        return it.copy(entries = actual + spawned)
+    }
+
+    private fun shutdownSuperfluousWorkers(it: WorkerTableEntry): WorkerTableEntry {
+        val (proto, actual) = it
+        proto to actual.drop(proto.nWorkers)
+                .also {
+                    if (it.isNotEmpty()) {
+                        logger.info { "Found ${it.size} superfluous workers" }
+                    }
+                }
+                .forEach { (_worker, consumer, _th) ->
+                    consumer.stopGracefully()
+                }
+        return it
+    }
+
+    private fun cleanupDeadWorkers(it: WorkerTableEntry): WorkerTableEntry {
+        val (proto, actual) = it
+        val stillAlive = actual.filter { (_, _, th) -> th.isAlive }
+        val died = actual.filterNot { (_, _, th) -> th.isAlive }
+        val (newCrashes, newExits) = if (died.isNotEmpty()) {
+            val exs = died.mapNotNull { (_, _, th) -> crashes.remove(th) }
+            exs.forEach { ex ->
+                logger.error(ex) { "Worker ${proto.name()} crashed" }
+            }
+            val exited = died.size - exs.size
+            val exceptions = exs.size
+            logger.info { "Found ${exceptions} crashed threads and ${exited} exited threads" }
+            exceptions to exited
+        } else 0 to 0
+        return it.copy(entries = stillAlive,
+                crashes = it.crashes + newCrashes,
+                exits = it.exits + newExits)
+    }
+
+
 }
