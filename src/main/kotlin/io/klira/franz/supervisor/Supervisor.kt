@@ -3,10 +3,9 @@ package io.klira.franz.supervisor
 import io.klira.franz.Worker
 import io.klira.franz.engine.Consumer
 import io.klira.franz.engine.ConsumerPlugin
+import io.klira.franz.engine.ConsumerPluginConfigurationError
 import mu.KotlinLogging
-import java.lang.Exception
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.LinkedBlockingQueue
 
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
@@ -33,23 +32,27 @@ class Supervisor : Runnable {
     private data class WorkerTableEntry(val proto: WorkerPrototype, val entries: List<WorkerRuntimeInfo>, val crashes: Int= 0, val exits: Int = 0)
     private var workerId = 1
     private val dataLock = ReentrantLock()
-    private var data = mutableListOf<WorkerTableEntry>()
+    private var data = listOf<WorkerTableEntry>()
     private val shouldRun = AtomicBoolean(true)
     private val crashes = ConcurrentHashMap<Thread, Throwable>()
     private val shutdownHook = Thread {
         stopGracefully()
     }
     private val consumerExceptionHandler = Thread.UncaughtExceptionHandler { th, ex ->
-        crashes[th] = ex
+        if (ex is ConsumerPluginConfigurationError) {
+            logger.error(ex) { "ConsumerPlugin was misconfigured, stopping"}
+            shouldRun.set(false)
+        } else {
+            crashes[th] = ex
+        }
     }
     fun <T : Worker> createPrototype(workerClass: Class<T>, createPlugins: () -> List<ConsumerPlugin>) {
         dataLock.lock()
         try {
-            data.add(
-                    WorkerTableEntry(
+            data += WorkerTableEntry(
                             WorkerPrototype(workerClass, createPlugins),
                             emptyList()
-                    ))
+            )
         } finally {
             dataLock.unlock()
         }
@@ -104,8 +107,17 @@ class Supervisor : Runnable {
 
     private var crashingTicks = 0
     private fun update() {
+        val stillRunning = shouldRun.get()
         val oldCrashes = data.sumBy { it.crashes }
-        val newData = data
+        val newData = performUpdate(stillRunning)
+        data = newData.toMutableList()
+        if (stillRunning) {
+            countNewCrashes(oldCrashes)
+        }
+
+    }
+
+    private fun performUpdate(stillRunning: Boolean): List<WorkerTableEntry> = data
                 // PHASE 1: Find dead workers and remove them.
                 .map {
                     cleanupDeadWorkers(it)
@@ -116,9 +128,14 @@ class Supervisor : Runnable {
                 }
                 // PHASE 3: Find prototypes that are missing workers and create those.
                 .map {
-                    spawnRequiredWorkers(it)
+                    if (stillRunning) {
+                        spawnRequiredWorkers(it)
+                    } else {
+                        it
+                    }
                 }
-        data = newData.toMutableList()
+
+    private fun countNewCrashes(oldCrashes: Int) {
         val newCrashes = data.sumBy { it.crashes }
         val crashDelta = (newCrashes - oldCrashes)
         if (crashDelta > 0) {

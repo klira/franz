@@ -3,6 +3,7 @@ package io.klira.franz.engine.plugins.kafka
 import io.klira.franz.impl.BasicJob
 import io.klira.franz.engine.Consumer
 import io.klira.franz.engine.ConsumerPlugin
+import io.klira.franz.engine.ConsumerPluginLoadStatus
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.TopicPartition
@@ -34,14 +35,15 @@ class KafkaConsumerPlugin(private val options: Map<String, Any>,
         }
     }
 
-    override fun onPluginLoaded(c: Consumer) {
+    override fun onPluginLoaded(c: Consumer) : ConsumerPluginLoadStatus {
         val fullConfig = DEFAULT_OPTIONS + options
         if (required.any { fullConfig.containsKey(it) }) {
             val missingFields = required - fullConfig.keys
-            throw IllegalStateException("Missing required kafka configuration fields: ${missingFields}")
+            return ConsumerPluginLoadStatus.ConfigurationError("Missing required kafka configuration fields: ${missingFields}")
         }
         consumer = KafkaConsumer(fullConfig)
         c.setPluginMeta("kafkaConsumer", consumer!!)
+        return ConsumerPluginLoadStatus.Success
     }
 
     override fun beforeStarting(c: Consumer) {
