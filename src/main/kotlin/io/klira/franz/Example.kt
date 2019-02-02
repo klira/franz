@@ -1,6 +1,5 @@
 package io.klira.franz
 
-import io.klira.franz.engine.Consumer
 import io.klira.franz.engine.plugins.kafka.CommitManager
 import io.klira.franz.engine.plugins.kafka.KafkaConsumerPlugin
 import io.klira.franz.engine.plugins.retry.RetryManager
@@ -15,15 +14,27 @@ class MyWorker : Worker {
 
 
 fun main(args: Array<String>) {
-    val (sp, th) = Supervisor.spawnInThread()
-
+    //val (sp, th) = Supervisor.spawnInThread()
+    val config = """
+        runtime:
+          supervisor:
+            tasks:
+            - worker:
+                className: io.klira.franz.MyWorker
+              plugins:
+              - className: io.klira.franz.engine.plugins.kafka.CommitManager
+              - className: io.klira.franz.engine.plugins.kafka.KafkaConsumerPlugin
+              - className: io.klira.franz.engine.plugins.retry.RetryManager
+    """.trimIndent()
+    Runtime.fromString(config).run()
+    /*
     sp.createPrototype(MyWorker::class.java) {
         listOf(
                 CommitManager(),
                 RetryManager(),
                 KafkaConsumerPlugin(emptyMap(), listOf("hello", "world"))
         )
-    }
+    }*/
 
-    th.join()
+    //th.join()
 }

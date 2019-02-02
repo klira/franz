@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 class KafkaConsumerPlugin(private val options: Map<String, Any>,
                           private val topics: List<String>) : ConsumerPlugin {
+    constructor() : this(emptyMap(), emptyList())
     private var consumer: KafkaConsumer<ByteArray, ByteArray>? =  null
     private val topicPartitionChangesPending = ConcurrentLinkedQueue<Pair<TopicPartition, Boolean>>()
     private val onRebalance = object : ConsumerRebalanceListener {

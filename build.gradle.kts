@@ -45,4 +45,5 @@ dependencies {
     testCompile("org.junit.jupiter:junit-jupiter-api:5.3.0")
     testRuntime ("org.junit.jupiter:junit-jupiter-engine:5.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.0")
+    compile(group= "org.yaml", name = "snakeyaml", version = "1.23")
 }
