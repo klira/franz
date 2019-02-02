@@ -6,6 +6,9 @@ import io.klira.franz.supervisor.Supervisor
 import mu.KotlinLogging
 import org.yaml.snakeyaml.Yaml
 import java.lang.UnsupportedOperationException
+import java.nio.file.FileSystems
+import java.nio.file.Files
+import java.nio.file.Path
 
 class Runtime(private val config: Map<String, Any>) {
 
@@ -74,6 +77,18 @@ class Runtime(private val config: Map<String, Any>) {
                 is Map<*, *> ->
                 @Suppress("UNCHECKED_CAST")
                 data as Map<String, Any>
+                else -> throw Exception("Bad YAML")
+            }
+            return Runtime(data)
+        }
+
+        fun fromFile(path: String): Runtime {
+            val y = Yaml()
+            val p = FileSystems.getDefault().getPath(path)
+            val data = when (val data = Files.newInputStream(p).use { y.load<Any>(it) }) {
+                is Map<*, *> ->
+                    @Suppress("UNCHECKED_CAST")
+                    data as Map<String, Any>
                 else -> throw Exception("Bad YAML")
             }
             return Runtime(data)

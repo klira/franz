@@ -1,0 +1,9 @@
+runtime:
+  supervisor:
+    tasks:
+      - worker:
+          className: io.klira.franz.MyWorker
+        plugins:
+        - className: io.klira.franz.engine.plugins.kafka.CommitManager
+        - className: io.klira.franz.engine.plugins.kafka.KafkaConsumerPlugin
+        - className: io.klira.franz.engine.plugins.retry.RetryManager
