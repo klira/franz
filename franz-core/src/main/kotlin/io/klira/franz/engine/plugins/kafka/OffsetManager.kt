@@ -14,8 +14,9 @@ class OffsetManager {
     fun onFailed(tp: TopicPartition, offset: Long) {
         get(tp).onFailed(offset)
     }
-    fun onSuccess(tp: TopicPartition, offset: Long) : Optional<Pair<TopicPartition, Long>> =
-        get(tp).onSuccess(offset).map { tp to it }
+
+    fun onSuccess(tp: TopicPartition, offset: Long): Optional<Pair<TopicPartition, Long>> =
+            get(tp).onSuccess(offset).map { tp to it }
 
     fun removeTopicPartition(tp: TopicPartition) {
         partitions.remove(tp)

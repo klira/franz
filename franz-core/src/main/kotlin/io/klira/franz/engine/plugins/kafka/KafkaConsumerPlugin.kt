@@ -1,20 +1,20 @@
 package io.klira.franz.engine.plugins.kafka
 
-import io.klira.franz.impl.BasicJob
 import io.klira.franz.engine.Consumer
 import io.klira.franz.engine.ConsumerPlugin
 import io.klira.franz.engine.ConsumerPluginLoadStatus
+import io.klira.franz.impl.BasicJob
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.TopicPartition
-import java.lang.IllegalStateException
 import java.time.Duration
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class KafkaConsumerPlugin(private val options: Map<String, Any>,
                           private val topics: List<String>) : ConsumerPlugin {
     constructor() : this(emptyMap(), emptyList())
-    private var consumer: KafkaConsumer<ByteArray, ByteArray>? =  null
+
+    private var consumer: KafkaConsumer<ByteArray, ByteArray>? = null
     private val topicPartitionChangesPending = ConcurrentLinkedQueue<Pair<TopicPartition, Boolean>>()
     private val onRebalance = object : ConsumerRebalanceListener {
         override fun onPartitionsAssigned(partitions: MutableCollection<TopicPartition>?) {
@@ -36,7 +36,7 @@ class KafkaConsumerPlugin(private val options: Map<String, Any>,
         }
     }
 
-    override fun onPluginLoaded(c: Consumer) : ConsumerPluginLoadStatus {
+    override fun onPluginLoaded(c: Consumer): ConsumerPluginLoadStatus {
         val fullConfig = DEFAULT_OPTIONS + options
         if (required.any { fullConfig.containsKey(it) }) {
             val missingFields = required - fullConfig.keys

@@ -1,14 +1,11 @@
 package io.klira.franz
 
-import com.sun.deploy.ref.CodeRef
 import io.klira.franz.engine.ConsumerPlugin
 import io.klira.franz.supervisor.Supervisor
 import mu.KotlinLogging
 import org.yaml.snakeyaml.Yaml
-import java.lang.UnsupportedOperationException
 import java.nio.file.FileSystems
 import java.nio.file.Files
-import java.nio.file.Path
 
 class Runtime(private val config: Map<String, Any>) {
 
@@ -16,8 +13,9 @@ class Runtime(private val config: Map<String, Any>) {
         abstract fun getClassRef(): Class<*>
         private class BundledClass(val name: String) : CodeReference() {
             override fun getClassRef(): Class<*> =
-                Class.forName(name)
+                    Class.forName(name)
         }
+
         companion object {
             fun fromMap(m: Map<String, Any>): CodeReference = when {
                 "className" in m -> BundledClass(m["className"] as String)
@@ -25,6 +23,7 @@ class Runtime(private val config: Map<String, Any>) {
             }
         }
     }
+
     private data class SupervisorTaskConfig(private val worker: CodeReference, private val plugins: List<CodeReference>) {
         companion object {
             fun fromMap(data: Map<String, Any>): SupervisorTaskConfig {
@@ -34,6 +33,7 @@ class Runtime(private val config: Map<String, Any>) {
                 return SupervisorTaskConfig(worker, plugins)
             }
         }
+
         fun addtoSupervisor(s: Supervisor) {
             val pluginInstances = plugins.asSequence()
                     .map { it.getClassRef() }
@@ -46,13 +46,14 @@ class Runtime(private val config: Map<String, Any>) {
 
     private data class SupervisorConfig(private val tasks: List<SupervisorTaskConfig>) {
         companion object {
-            fun fromMap(supervisor: Map<String, Any>) : SupervisorConfig =
-                (supervisor.getOrDefault("tasks", emptyList()) as List<Any>).map {
-                    it as Map<String, Any>
-                }.map {
-                    SupervisorTaskConfig.fromMap(it)
-                }.let { SupervisorConfig(it) }
+            fun fromMap(supervisor: Map<String, Any>): SupervisorConfig =
+                    (supervisor.getOrDefault("tasks", emptyList()) as List<Any>).map {
+                        it as Map<String, Any>
+                    }.map {
+                        SupervisorTaskConfig.fromMap(it)
+                    }.let { SupervisorConfig(it) }
         }
+
         fun addToSupervisor(supervisor: Supervisor) {
             tasks.map { it.addtoSupervisor(supervisor) }
         }
@@ -71,12 +72,12 @@ class Runtime(private val config: Map<String, Any>) {
         @JvmStatic
         private val logger = KotlinLogging.logger {}
 
-        fun fromString(s: String) : Runtime {
+        fun fromString(s: String): Runtime {
             val y = Yaml()
             val data = when (val data = y.load<Any>(s)) {
                 is Map<*, *> ->
-                @Suppress("UNCHECKED_CAST")
-                data as Map<String, Any>
+                    @Suppress("UNCHECKED_CAST")
+                    data as Map<String, Any>
                 else -> throw Exception("Bad YAML")
             }
             return Runtime(data)

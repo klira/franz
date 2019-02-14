@@ -9,7 +9,9 @@ internal data class JobRetryInfo(val job: BasicJob, val retryNo: Int, val retryT
     companion object {
         private val DELAYS = uintArrayOf(0u, 20u, 30u, 100u, 600u, 3000u)
     }
+
     constructor(job: BasicJob, retryNo: Int) : this(job, retryNo, Instant.now().epochSecond)
+
     internal fun nextAttempt() = JobRetryInfo(job, retryNo + 1)
 
     private fun currentDelay() = DELAYS[retryNo.toInt()].toULong()

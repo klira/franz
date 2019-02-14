@@ -11,10 +11,12 @@ class KMessage(private val rec: ConsumerRecord<ByteArray, ByteArray>) : Message 
             .filterNot { null == it.key() || null == it.value() }
             .map { Pair(it.key()!!, it.value()!!) }
             .toTypedArray()
+
     override fun headers(key: String): Array<ByteArray> = rec.headers()
             .filter { it.key() == key }
             .map { it.value() }
             .toTypedArray()
+
     override fun timestamp(): Long = rec.timestamp()
     override fun topic(): String = rec.topic()
     override fun partition(): Long = rec.partition().toLong()

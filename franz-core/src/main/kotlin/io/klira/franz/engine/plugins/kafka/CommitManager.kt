@@ -2,10 +2,9 @@ package io.klira.franz.engine.plugins.kafka
 
 import io.klira.franz.JobUpdate
 import io.klira.franz.Message
-import io.klira.franz.impl.BasicJob
 import io.klira.franz.engine.Consumer
 import io.klira.franz.engine.ConsumerPlugin
-
+import io.klira.franz.impl.BasicJob
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.consumer.OffsetCommitCallback
@@ -13,7 +12,7 @@ import org.apache.kafka.common.TopicPartition
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
-private fun Message.topicPartition() : TopicPartition =
+private fun Message.topicPartition(): TopicPartition =
         TopicPartition(topic(), partition().toInt())
 
 class CommitManager : ConsumerPlugin {
@@ -55,7 +54,7 @@ class CommitManager : ConsumerPlugin {
         } // else: Log something
     }
 
-    private fun <T> Sequence<Optional<T>>.nonEmpty() : Sequence<T> =
+    private fun <T> Sequence<Optional<T>>.nonEmpty(): Sequence<T> =
             filter { it.isPresent }.map { it.get() }
 
     override fun handleJobUpdates(results: List<Pair<BasicJob, JobUpdate>>) {

@@ -10,7 +10,7 @@ class PartitionOffsetManager {
         failingJobs.add(offset)
     }
 
-    fun onSuccess(offset: Long) : Optional<Long> {
+    fun onSuccess(offset: Long): Optional<Long> {
         // The logic for advancing offsets is really complicated.
         // There are four cases for it:
 

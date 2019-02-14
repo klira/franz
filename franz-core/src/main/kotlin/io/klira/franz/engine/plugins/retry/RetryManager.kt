@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit
 class RetryManager : ConsumerPlugin {
     private val rescheduledJobs = DelayQueue<JobRetryInfo>()
     private val jobToRetryInfo = mutableMapOf<BasicJob, JobRetryInfo>()
-    private fun drainRetries() : List<BasicJob> {
+    private fun drainRetries(): List<BasicJob> {
         val lst = mutableListOf<BasicJob>()
         while (lst.size < 11) {
             val p = rescheduledJobs.peek()
@@ -22,6 +22,7 @@ class RetryManager : ConsumerPlugin {
         }
         return lst.toList()
     }
+
     override fun produceJobs(): List<BasicJob> {
         return drainRetries()
     }

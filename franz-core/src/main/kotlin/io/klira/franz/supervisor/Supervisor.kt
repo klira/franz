@@ -15,7 +15,8 @@ class Supervisor : Runnable {
     companion object {
         @JvmStatic
         private val logger = KotlinLogging.logger {}
-        fun spawnInThread() : Pair<Supervisor, Thread> {
+
+        fun spawnInThread(): Pair<Supervisor, Thread> {
             val s = Supervisor()
             val th = Thread(s)
             th.name = "Supervisor"
@@ -23,13 +24,16 @@ class Supervisor : Runnable {
             return s to th
         }
     }
+
     private data class WorkerPrototype(val workerClass: Class<*>,
                                        val createPlugins: () -> List<ConsumerPlugin>,
                                        val nWorkers: Int = 1) {
         fun name(): String = workerClass.name
     }
+
     private data class WorkerRuntimeInfo(val worker: Worker, val consumer: Consumer, val thread: Thread)
-    private data class WorkerTableEntry(val proto: WorkerPrototype, val entries: List<WorkerRuntimeInfo>, val crashes: Int= 0, val exits: Int = 0)
+    private data class WorkerTableEntry(val proto: WorkerPrototype, val entries: List<WorkerRuntimeInfo>, val crashes: Int = 0, val exits: Int = 0)
+
     private var workerId = 1
     private val dataLock = ReentrantLock()
     private var data = listOf<WorkerTableEntry>()
@@ -40,25 +44,26 @@ class Supervisor : Runnable {
     }
     private val consumerExceptionHandler = Thread.UncaughtExceptionHandler { th, ex ->
         if (ex is ConsumerPluginConfigurationError) {
-            logger.error(ex) { "ConsumerPlugin was misconfigured, stopping"}
+            logger.error(ex) { "ConsumerPlugin was misconfigured, stopping" }
             shouldRun.set(false)
         } else {
             crashes[th] = ex
         }
     }
+
     fun <T : Worker> createPrototype(workerClass: Class<T>, createPlugins: () -> List<ConsumerPlugin>) {
         dataLock.lock()
         try {
             data += WorkerTableEntry(
-                            WorkerPrototype(workerClass, createPlugins),
-                            emptyList()
+                    WorkerPrototype(workerClass, createPlugins),
+                    emptyList()
             )
         } finally {
             dataLock.unlock()
         }
     }
 
-    private fun spawn(wp: WorkerPrototype) : WorkerRuntimeInfo {
+    private fun spawn(wp: WorkerPrototype): WorkerRuntimeInfo {
         // The validity is guaranteed by the fact that adding prototypes
         // can only be done using a method taking subclassses of worker
         val worker = wp.workerClass.newInstance() as Worker
@@ -75,7 +80,7 @@ class Supervisor : Runnable {
         logger.info { "Supervisor starting up" }
         try {
             Runtime.getRuntime().addShutdownHook(shutdownHook)
-            while(shouldRun.get()) {
+            while (shouldRun.get()) {
                 try {
                     dataLock.lock()
                     update()
@@ -118,22 +123,22 @@ class Supervisor : Runnable {
     }
 
     private fun performUpdate(stillRunning: Boolean): List<WorkerTableEntry> = data
-                // PHASE 1: Find dead workers and remove them.
-                .map {
-                    cleanupDeadWorkers(it)
+            // PHASE 1: Find dead workers and remove them.
+            .map {
+                cleanupDeadWorkers(it)
+            }
+            // PHASE 2: Find superfluous workers and gently ask them to remove themselves.
+            .map {
+                shutdownSuperfluousWorkers(it)
+            }
+            // PHASE 3: Find prototypes that are missing workers and create those.
+            .map {
+                if (stillRunning) {
+                    spawnRequiredWorkers(it)
+                } else {
+                    it
                 }
-                // PHASE 2: Find superfluous workers and gently ask them to remove themselves.
-                .map {
-                    shutdownSuperfluousWorkers(it)
-                }
-                // PHASE 3: Find prototypes that are missing workers and create those.
-                .map {
-                    if (stillRunning) {
-                        spawnRequiredWorkers(it)
-                    } else {
-                        it
-                    }
-                }
+            }
 
     private fun countNewCrashes(oldCrashes: Int) {
         val newCrashes = data.sumBy { it.crashes }

@@ -2,7 +2,7 @@ package io.klira.franz
 
 interface Message {
     fun offset(): Long
-    fun value() : ByteArray
+    fun value(): ByteArray
     fun headers(): Array<Pair<String, ByteArray>>
     fun headers(key: String): Array<ByteArray>
     fun key(): ByteArray

@@ -6,8 +6,6 @@ import io.klira.franz.impl.BasicJob
 import io.klira.franz.impl.BasicJobUpdate
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
-import java.lang.IllegalStateException
-import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
 class Consumer(private val worker: Worker, private val plugins: List<ConsumerPlugin>) : Runnable {
@@ -44,7 +42,8 @@ class Consumer(private val worker: Worker, private val plugins: List<ConsumerPlu
         if (configErrors.isNotEmpty()) {
             val errorMsg = configErrors.map { it.reason }.joinToString("\n")
             logger.error {
-                "Configuration error in ${configErrors.size} plugins \n ${errorMsg}" }
+                "Configuration error in ${configErrors.size} plugins \n ${errorMsg}"
+            }
             throw ConsumerPluginConfigurationError(configErrors.toList())
         }
 

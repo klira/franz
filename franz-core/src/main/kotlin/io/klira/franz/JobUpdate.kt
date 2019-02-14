@@ -1,5 +1,5 @@
 package io.klira.franz
 
 interface JobUpdate {
-    fun mayAdvanceOffset() : Boolean
+    fun mayAdvanceOffset(): Boolean
 }
