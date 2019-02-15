@@ -1,17 +1,18 @@
 package io.klira.franz.engine.plugins.retry
 
+import io.klira.franz.Job
 import io.klira.franz.JobUpdate
 import io.klira.franz.engine.ConsumerPlugin
-import io.klira.franz.runtime.BasicJob
+
 import java.util.concurrent.DelayQueue
 import java.util.concurrent.TimeUnit
 
 
 class RetryManager : ConsumerPlugin {
     private val rescheduledJobs = DelayQueue<JobRetryInfo>()
-    private val jobToRetryInfo = mutableMapOf<BasicJob, JobRetryInfo>()
-    private fun drainRetries(): List<BasicJob> {
-        val lst = mutableListOf<BasicJob>()
+    private val jobToRetryInfo = mutableMapOf<Job, JobRetryInfo>()
+    private fun drainRetries(): List<Job> {
+        val lst = mutableListOf<Job>()
         while (lst.size < 11) {
             val p = rescheduledJobs.peek()
             if (p != null && p.getDelay(TimeUnit.SECONDS) <= 0L) {
@@ -23,11 +24,11 @@ class RetryManager : ConsumerPlugin {
         return lst.toList()
     }
 
-    override fun produceJobs(): List<BasicJob> {
+    override fun produceJobs(): List<Job> {
         return drainRetries()
     }
 
-    override fun handleJobUpdates(results: List<Pair<BasicJob, JobUpdate>>) {
+    override fun handleJobUpdates(results: List<Pair<Job, JobUpdate>>) {
         results
                 .map { (j, u) -> u.mayAdvanceOffset() to j }
                 .forEach { (mayAdvance, j) ->

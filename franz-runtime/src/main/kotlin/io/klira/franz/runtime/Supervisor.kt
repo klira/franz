@@ -1,5 +1,6 @@
 package io.klira.franz.runtime
 
+import io.klira.franz.Consumer
 import io.klira.franz.Worker
 import io.klira.franz.engine.ConsumerPlugin
 import io.klira.franz.engine.ConsumerPluginConfigurationError
@@ -66,7 +67,7 @@ class Supervisor : Runnable {
         // The validity is guaranteed by the fact that adding prototypes
         // can only be done using a method taking subclassses of worker
         val worker = wp.workerClass.newInstance() as Worker
-        val cons = Consumer(worker, wp.createPlugins())
+        val cons = ConsumerImpl(worker, wp.createPlugins())
         logger.info { "Spawning new worker for ${wp.name()}" }
         val th = Thread(cons)
         th.name = "Worker-${workerId++}"

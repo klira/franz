@@ -1,10 +1,10 @@
 package io.klira.franz.engine.plugins.kafka
 
+import io.klira.franz.Consumer
+import io.klira.franz.Job
 import io.klira.franz.JobUpdate
 import io.klira.franz.Message
-import io.klira.franz.engine.Consumer
 import io.klira.franz.engine.ConsumerPlugin
-import io.klira.franz.impl.BasicJob
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.consumer.OffsetCommitCallback
@@ -57,7 +57,7 @@ class CommitManager : ConsumerPlugin {
     private fun <T> Sequence<Optional<T>>.nonEmpty(): Sequence<T> =
             filter { it.isPresent }.map { it.get() }
 
-    override fun handleJobUpdates(results: List<Pair<BasicJob, JobUpdate>>) {
+    override fun handleJobUpdates(results: List<Pair<Job, JobUpdate>>) {
         val newOffsets = results.asSequence()
                 .map { (job, update) ->
                     val tp = job.message().topicPartition()

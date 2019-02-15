@@ -1,7 +1,4 @@
-package io.klira.franz.runtime
-
-import io.klira.franz.Job
-import io.klira.franz.Message
+package io.klira.franz
 
 class BasicJob(private val message: Message) : Job {
     override fun message(): Message = message

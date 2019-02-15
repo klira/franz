@@ -1,9 +1,10 @@
 package io.klira.franz.engine.plugins.kafka
 
-import io.klira.franz.engine.Consumer
+import io.klira.franz.BasicJob
+import io.klira.franz.Consumer
+import io.klira.franz.Job
 import io.klira.franz.engine.ConsumerPlugin
 import io.klira.franz.engine.ConsumerPluginLoadStatus
-import io.klira.franz.impl.BasicJob
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.TopicPartition
@@ -51,7 +52,7 @@ class KafkaConsumerPlugin(private val options: Map<String, Any>,
         consumer!!.subscribe(topics, onRebalance)
     }
 
-    override fun produceJobs(): List<BasicJob> =
+    override fun produceJobs(): List<Job> =
             consumer!!.poll(Duration.ofSeconds(10))
                     .asSequence()
                     .map { BasicJob(KMessage(it)) }

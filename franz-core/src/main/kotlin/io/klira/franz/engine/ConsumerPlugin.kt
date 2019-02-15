@@ -1,8 +1,8 @@
 package io.klira.franz.engine
 
+import io.klira.franz.Consumer
+import io.klira.franz.Job
 import io.klira.franz.JobUpdate
-import io.klira.franz.runtime.BasicJob
-import io.klira.franz.runtime.Consumer
 
 interface ConsumerPlugin {
     fun onPluginLoaded(c: Consumer): ConsumerPluginLoadStatus {
@@ -15,12 +15,12 @@ interface ConsumerPlugin {
     fun beforeClosing() {}
 
     /// Handle jobstatuses
-    fun handleJobUpdates(results: List<Pair<BasicJob, JobUpdate>>) {}
+    fun handleJobUpdates(results: List<Pair<Job, JobUpdate>>) {}
 
     fun onTick() {}
 
 
-    fun produceJobs(): List<BasicJob> = emptyList<BasicJob>()
+    fun produceJobs(): List<Job> = emptyList()
 
 
     fun onClose() {}

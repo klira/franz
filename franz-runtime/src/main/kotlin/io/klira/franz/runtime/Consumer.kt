@@ -1,7 +1,6 @@
 package io.klira.franz.runtime
 
-import io.klira.franz.JobUpdate
-import io.klira.franz.Worker
+import io.klira.franz.*
 import io.klira.franz.engine.ConsumerPlugin
 import io.klira.franz.engine.ConsumerPluginConfigurationError
 import io.klira.franz.engine.ConsumerPluginLoadStatus
@@ -9,7 +8,7 @@ import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import java.util.concurrent.atomic.AtomicBoolean
 
-class Consumer(private val worker: Worker, private val plugins: List<ConsumerPlugin>) : Runnable {
+class ConsumerImpl(private val worker: Worker, private val plugins: List<ConsumerPlugin>) : Consumer, Runnable {
 
     companion object {
         @JvmStatic
@@ -20,11 +19,11 @@ class Consumer(private val worker: Worker, private val plugins: List<ConsumerPlu
 
     private val pluginMeta = mutableMapOf<String, Any>()
 
-    fun setPluginMeta(key: String, value: Any) {
+    override fun setPluginMeta(key: String, value: Any) {
         pluginMeta[key] = value
     }
 
-    fun getPluginMeta(key: String) = pluginMeta[key]
+    override fun getPluginMeta(key: String): Any? = pluginMeta[key]
 
 
     inline fun preventSpinWait(timeTaken: Long, fn: () -> Unit) {
@@ -37,7 +36,7 @@ class Consumer(private val worker: Worker, private val plugins: List<ConsumerPlu
     }
 
     override fun run() {
-        val configErrors = runInAllPlugins { onPluginLoaded(this@Consumer) }
+        val configErrors = runInAllPlugins { onPluginLoaded(this@ConsumerImpl) }
                 .mapNotNull { it as? ConsumerPluginLoadStatus.ConfigurationError }
 
         if (configErrors.isNotEmpty()) {
@@ -50,7 +49,7 @@ class Consumer(private val worker: Worker, private val plugins: List<ConsumerPlu
 
         try {
             try {
-                runInAllPlugins { beforeStarting(this@Consumer) }
+                runInAllPlugins { beforeStarting(this@ConsumerImpl) }
                 while (shouldRun.get()) {
                     preventSpinWait(500) {
                         runInAllPlugins {
@@ -81,11 +80,11 @@ class Consumer(private val worker: Worker, private val plugins: List<ConsumerPlu
                 it.getOrThrow()
             }
 
-    fun stopGracefully() {
+    override fun stopGracefully() {
         this.shouldRun.lazySet(false)
     }
 
-    private fun runJob(job: BasicJob): Pair<BasicJob, JobUpdate> {
+    private fun runJob(job: Job): Pair<Job, JobUpdate> {
         return runBlocking {
             runCatching {
                 worker.processMessage(job)

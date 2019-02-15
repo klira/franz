@@ -1,5 +1,6 @@
 package io.klira.franz.runtime
 
+import io.klira.franz.BasicJobUpdate
 import io.klira.franz.Job
 import io.klira.franz.JobUpdate
 import io.klira.franz.Worker
