@@ -1,9 +1,10 @@
-package io.klira.franz.engine
+package io.klira.franz.runtime
 
 import io.klira.franz.JobUpdate
 import io.klira.franz.Worker
-import io.klira.franz.impl.BasicJob
-import io.klira.franz.impl.BasicJobUpdate
+import io.klira.franz.engine.ConsumerPlugin
+import io.klira.franz.engine.ConsumerPluginConfigurationError
+import io.klira.franz.engine.ConsumerPluginLoadStatus
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import java.util.concurrent.atomic.AtomicBoolean

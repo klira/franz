@@ -1,7 +1,6 @@
-package io.klira.franz.supervisor
+package io.klira.franz.runtime
 
 import io.klira.franz.Worker
-import io.klira.franz.engine.Consumer
 import io.klira.franz.engine.ConsumerPlugin
 import io.klira.franz.engine.ConsumerPluginConfigurationError
 import mu.KotlinLogging
@@ -79,7 +78,7 @@ class Supervisor : Runnable {
     override fun run() {
         logger.info { "Supervisor starting up" }
         try {
-            Runtime.getRuntime().addShutdownHook(shutdownHook)
+            java.lang.Runtime.getRuntime().addShutdownHook(shutdownHook)
             while (shouldRun.get()) {
                 try {
                     dataLock.lock()
@@ -101,7 +100,7 @@ class Supervisor : Runnable {
                 }
             }
         } finally {
-            Runtime.getRuntime().removeShutdownHook(shutdownHook)
+            java.lang.Runtime.getRuntime().removeShutdownHook(shutdownHook)
         }
 
     }

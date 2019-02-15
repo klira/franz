@@ -1,7 +1,8 @@
 package io.klira.franz.engine
 
 import io.klira.franz.JobUpdate
-import io.klira.franz.impl.BasicJob
+import io.klira.franz.runtime.BasicJob
+import io.klira.franz.runtime.Consumer
 
 interface ConsumerPlugin {
     fun onPluginLoaded(c: Consumer): ConsumerPluginLoadStatus {

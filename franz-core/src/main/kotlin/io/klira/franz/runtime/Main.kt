@@ -1,6 +1,8 @@
-package io.klira.franz
+package io.klira.franz.runtime
 
-import io.klira.franz.impl.BasicJobUpdate
+import io.klira.franz.Job
+import io.klira.franz.JobUpdate
+import io.klira.franz.Worker
 
 class MyWorker : Worker {
     override suspend fun processMessage(job: Job): JobUpdate {

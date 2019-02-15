@@ -1,7 +1,7 @@
-package io.klira.franz
+package io.klira.franz.runtime
 
+import io.klira.franz.Worker
 import io.klira.franz.engine.ConsumerPlugin
-import io.klira.franz.supervisor.Supervisor
 import mu.KotlinLogging
 import org.yaml.snakeyaml.Yaml
 import java.nio.file.FileSystems

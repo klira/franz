@@ -1,6 +1,6 @@
 package io.klira.franz.engine.plugins.retry
 
-import io.klira.franz.impl.BasicJob
+import io.klira.franz.runtime.BasicJob
 import java.time.Instant
 import java.util.concurrent.Delayed
 import java.util.concurrent.TimeUnit

@@ -1,4 +1,4 @@
-package io.klira.franz.impl
+package io.klira.franz.runtime
 
 import io.klira.franz.Job
 import io.klira.franz.Message

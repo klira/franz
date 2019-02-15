@@ -2,7 +2,7 @@ package io.klira.franz.engine.plugins.retry
 
 import io.klira.franz.JobUpdate
 import io.klira.franz.engine.ConsumerPlugin
-import io.klira.franz.impl.BasicJob
+import io.klira.franz.runtime.BasicJob
 import java.util.concurrent.DelayQueue
 import java.util.concurrent.TimeUnit
 
