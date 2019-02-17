@@ -53,7 +53,7 @@ class ConsumerImpl(private val worker: Worker, private val plugins: List<Consume
                 while (shouldRun.get()) {
                     preventSpinWait(500) {
                         runInAllPlugins {
-                            val results = produceJobs().map { job -> runJob(job) }
+                            val results = runJobBatch(produceJobs())
                             runInAllPlugins {
                                 handleJobUpdates(results)
                             }
@@ -84,13 +84,26 @@ class ConsumerImpl(private val worker: Worker, private val plugins: List<Consume
         this.shouldRun.lazySet(false)
     }
 
-    private fun runJob(job: Job): Pair<Job, JobUpdate> {
+    private fun runJobBatch(batch: JobBatch): List<Pair<Job, JobUpdate>> {
+        if (worker.batchType() == JobBatchType.SINGLE) {
+            return runBlocking {
+                JobBatches.toSingle(batch).map { singleBatch ->
+                    runCatching {
+                        val res = worker.processBatch(singleBatch)
+                        assert(res.size == 1)
+                        res.first()
+                    }.recover { singleBatch.asLinear().first() to BasicJobUpdate(false) }
+                            .getOrThrow()
+                }
+            }
+        }
         return runBlocking {
             runCatching {
-                worker.processMessage(job)
-            }.recover { BasicJobUpdate(false) }
-                    .map { job to it }
-                    .getOrThrow()
+                worker.processBatch(batch)
+            }.recover {
+                val update = BasicJobUpdate(false)
+                batch.asLinear().map { it to update }
+            }.getOrThrow()
         }
     }
 }

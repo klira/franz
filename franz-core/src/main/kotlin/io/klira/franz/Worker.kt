@@ -1,6 +1,7 @@
 package io.klira.franz
 
 interface Worker {
-    suspend fun processMessage(job: Job): JobUpdate
+    fun batchType(): JobBatchType = JobBatchType.SINGLE
+    suspend fun processBatch(jobBatch: JobBatch): List<Pair<Job, JobUpdate>>
 }
 

@@ -5,6 +5,7 @@ import io.klira.franz.Job
 import io.klira.franz.JobUpdate
 import io.klira.franz.Message
 import io.klira.franz.engine.ConsumerPlugin
+import io.klira.franz.engine.ConsumerPluginOptions
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.clients.consumer.OffsetCommitCallback
@@ -15,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 private fun Message.topicPartition(): TopicPartition =
         TopicPartition(topic(), partition().toInt())
 
-class CommitManager : ConsumerPlugin {
+class CommitManager(private val opts: ConsumerPluginOptions) : ConsumerPlugin {
     private val busyCommitting = AtomicBoolean(false)
     private var offsetsToCommit = mutableMapOf<TopicPartition, OffsetAndMetadata>()
     private val offsetManager = OffsetManager()

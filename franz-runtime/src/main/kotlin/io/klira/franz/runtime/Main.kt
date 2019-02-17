@@ -1,13 +1,11 @@
 package io.klira.franz.runtime
 
-import io.klira.franz.BasicJobUpdate
-import io.klira.franz.Job
-import io.klira.franz.JobUpdate
-import io.klira.franz.Worker
+import io.klira.franz.*
 
 class MyWorker : Worker {
-    override suspend fun processMessage(job: Job): JobUpdate {
-        return BasicJobUpdate(true)
+    override suspend fun processBatch(jobBatch: JobBatch): List<Pair<Job, JobUpdate>> {
+        val j = jobBatch.asSingle()
+        return listOf(j to BasicJobUpdate(true))
     }
 }
 

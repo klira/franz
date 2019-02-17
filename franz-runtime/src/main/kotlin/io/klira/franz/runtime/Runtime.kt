@@ -2,6 +2,7 @@ package io.klira.franz.runtime
 
 import io.klira.franz.Worker
 import io.klira.franz.engine.ConsumerPlugin
+import io.klira.franz.engine.ConsumerPluginOptions
 import mu.KotlinLogging
 import org.yaml.snakeyaml.Yaml
 import java.nio.file.FileSystems
@@ -24,20 +25,33 @@ class Runtime(private val config: Map<String, Any>) {
         }
     }
 
-    private data class SupervisorTaskConfig(private val worker: CodeReference, private val plugins: List<CodeReference>) {
+    private data class PluginEntry private constructor(val codeRef: CodeReference, val options: ConsumerPluginOptions) {
+        companion object {
+            fun fromMap(m: Map<String, Any>) =
+                    PluginEntry(
+                            CodeReference.fromMap(m),
+                            ConsumerPluginOptions((m["options"] as? Map<String, Any>) ?: emptyMap()))
+        }
+    }
+
+    private data class SupervisorTaskConfig(private val worker: CodeReference, private val plugins: List<PluginEntry>) {
         companion object {
             fun fromMap(data: Map<String, Any>): SupervisorTaskConfig {
                 val worker = CodeReference.fromMap(data["worker"] as Map<String, Any>)
                 val plugins = (data["plugins"] as? List<Map<String, Any>> ?: emptyList())
-                        .map { CodeReference.fromMap(it) }
+                        .map { PluginEntry.fromMap(it) }
                 return SupervisorTaskConfig(worker, plugins)
             }
         }
 
         fun addtoSupervisor(s: Supervisor) {
             val pluginInstances = plugins.asSequence()
-                    .map { it.getClassRef() }
-                    .map { it.newInstance() }
+                    .map {
+                        it.codeRef
+                                .getClassRef()
+                                .getConstructor(ConsumerPluginOptions::class.java)
+                                .newInstance(it.options)
+                    }
                     .map { it as ConsumerPlugin }
 
             s.createPrototype(worker.getClassRef() as Class<Worker>) { pluginInstances.toList() }

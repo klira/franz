@@ -1,8 +1,6 @@
 package io.klira.franz.engine
 
-import io.klira.franz.Consumer
-import io.klira.franz.Job
-import io.klira.franz.JobUpdate
+import io.klira.franz.*
 
 interface ConsumerPlugin {
     fun onPluginLoaded(c: Consumer): ConsumerPluginLoadStatus {
@@ -20,7 +18,7 @@ interface ConsumerPlugin {
     fun onTick() {}
 
 
-    fun produceJobs(): List<Job> = emptyList()
+    fun produceJobs(): JobBatch = EmptyJobBatch
 
 
     fun onClose() {}

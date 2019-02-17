@@ -2,18 +2,20 @@ package io.klira.franz.engine.plugins.kafka
 
 import io.klira.franz.BasicJob
 import io.klira.franz.Consumer
-import io.klira.franz.Job
+import io.klira.franz.JobBatch
+import io.klira.franz.JobBatches
 import io.klira.franz.engine.ConsumerPlugin
 import io.klira.franz.engine.ConsumerPluginLoadStatus
+import io.klira.franz.engine.ConsumerPluginOptions
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.common.TopicPartition
 import java.time.Duration
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class KafkaConsumerPlugin(private val options: Map<String, Any>,
-                          private val topics: List<String>) : ConsumerPlugin {
-    constructor() : this(emptyMap(), emptyList())
+class KafkaConsumerPlugin(pluginOptions: ConsumerPluginOptions) : ConsumerPlugin {
+    private val options: Map<String, Any> = pluginOptions.getMap("kafkaOptions")
+    private val topics: List<String> = pluginOptions.options["topics"] as? List<String> ?: emptyList()
 
     private var consumer: KafkaConsumer<ByteArray, ByteArray>? = null
     private val topicPartitionChangesPending = ConcurrentLinkedQueue<Pair<TopicPartition, Boolean>>()
@@ -39,7 +41,7 @@ class KafkaConsumerPlugin(private val options: Map<String, Any>,
 
     override fun onPluginLoaded(c: Consumer): ConsumerPluginLoadStatus {
         val fullConfig = DEFAULT_OPTIONS + options
-        if (required.any { fullConfig.containsKey(it) }) {
+        if (required.any { !fullConfig.containsKey(it) }) {
             val missingFields = required - fullConfig.keys
             return ConsumerPluginLoadStatus.ConfigurationError("Missing required kafka configuration fields: ${missingFields}")
         }
@@ -52,11 +54,21 @@ class KafkaConsumerPlugin(private val options: Map<String, Any>,
         consumer!!.subscribe(topics, onRebalance)
     }
 
-    override fun produceJobs(): List<Job> =
-            consumer!!.poll(Duration.ofSeconds(10))
-                    .asSequence()
-                    .map { BasicJob(KMessage(it)) }
-                    .toList()
+    override fun produceJobs(): JobBatch {
+        val pollRes = consumer!!.poll(Duration.ofSeconds(10))
+
+        if (pollRes.isEmpty) {
+            return JobBatches.empty()
+        }
+        val partitions = pollRes.partitions()
+        val tagged = partitions
+                .map {
+                    it as Any to
+                            pollRes.records(it).map { rec -> BasicJob(KMessage(rec)) }
+                }
+                .toMap()
+        return JobBatches.fromTagged(tagged)
+    }
 
     override fun onClose() {
         consumer!!.close()
