@@ -14,6 +14,7 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class KafkaConsumerPlugin(pluginOptions: ConsumerPluginOptions) : ConsumerPlugin {
+    private val meta = pluginOptions.metadata
     private val options: Map<String, Any> = pluginOptions.getMap("kafkaOptions")
     private val topics: List<String> = pluginOptions.options["topics"] as? List<String> ?: emptyList()
 
@@ -39,8 +40,18 @@ class KafkaConsumerPlugin(pluginOptions: ConsumerPluginOptions) : ConsumerPlugin
         }
     }
 
+    private fun buildSmartDefaults() : Map<String, Any> {
+        val opts = mutableMapOf<String, Any>()
+        meta.name?.let {
+            opts["group.id"] = it
+        }
+        System.getenv("KAFKA_URL")?.let {
+            opts["bootstrap.servers"] = it
+        }
+        return opts.toMap()
+    }
     override fun onPluginLoaded(c: Consumer): ConsumerPluginLoadStatus {
-        val fullConfig = DEFAULT_OPTIONS + options
+        val fullConfig = DEFAULT_OPTIONS + buildSmartDefaults() + options
         if (required.any { !fullConfig.containsKey(it) }) {
             val missingFields = required - fullConfig.keys
             return ConsumerPluginLoadStatus.ConfigurationError("Missing required kafka configuration fields: ${missingFields}")

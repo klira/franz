@@ -3,10 +3,17 @@ package io.klira.franz.runtime
 import io.klira.franz.Worker
 import io.klira.franz.engine.ConsumerPlugin
 import io.klira.franz.engine.ConsumerPluginOptions
+import io.klira.franz.engine.ConsumerPluginOptionsMetadata
 import mu.KotlinLogging
 import org.yaml.snakeyaml.Yaml
 import java.nio.file.FileSystems
 import java.nio.file.Files
+
+private fun metadataFromMap(data: Map<String, Any>): ConsumerPluginOptionsMetadata {
+    val metadata = data["metadata"] as? Map<String, Any> ?: emptyMap()
+    val name = metadata["name"] as? String
+    return ConsumerPluginOptionsMetadata(name)
+}
 
 class Runtime(private val config: Map<String, Any>) {
 
@@ -27,24 +34,24 @@ class Runtime(private val config: Map<String, Any>) {
 
     private data class PluginEntry private constructor(val codeRef: CodeReference, val options: ConsumerPluginOptions) {
         companion object {
-            fun fromMap(m: Map<String, Any>) =
+            fun fromMap(m: Map<String, Any>, metadata: ConsumerPluginOptionsMetadata) =
                     PluginEntry(
                             CodeReference.fromMap(m),
-                            ConsumerPluginOptions((m["options"] as? Map<String, Any>) ?: emptyMap()))
+                            ConsumerPluginOptions((m["options"] as? Map<String, Any>) ?: emptyMap(), metadata))
         }
     }
 
     private data class SupervisorTaskConfig(private val worker: CodeReference, private val plugins: List<PluginEntry>) {
         companion object {
-            fun fromMap(data: Map<String, Any>): SupervisorTaskConfig {
+            fun fromMap(data: Map<String, Any>, metadata: ConsumerPluginOptionsMetadata): SupervisorTaskConfig {
                 val worker = CodeReference.fromMap(data["worker"] as Map<String, Any>)
                 val plugins = (data["plugins"] as? List<Map<String, Any>> ?: emptyList())
-                        .map { PluginEntry.fromMap(it) }
+                        .map { PluginEntry.fromMap(it, metadata) }
                 return SupervisorTaskConfig(worker, plugins)
             }
         }
 
-        fun addtoSupervisor(s: Supervisor) {
+        fun addToSupervisor(s: Supervisor) {
             val pluginInstances = plugins.asSequence()
                     .map {
                         it.codeRef
@@ -60,23 +67,24 @@ class Runtime(private val config: Map<String, Any>) {
 
     private data class SupervisorConfig(private val tasks: List<SupervisorTaskConfig>) {
         companion object {
-            fun fromMap(supervisor: Map<String, Any>): SupervisorConfig =
+            fun fromMap(supervisor: Map<String, Any>, metadata: ConsumerPluginOptionsMetadata): SupervisorConfig =
                     (supervisor.getOrDefault("tasks", emptyList()) as List<Any>).map {
                         it as Map<String, Any>
                     }.map {
-                        SupervisorTaskConfig.fromMap(it)
+                        SupervisorTaskConfig.fromMap(it, metadata)
                     }.let { SupervisorConfig(it) }
         }
 
         fun addToSupervisor(supervisor: Supervisor) {
-            tasks.map { it.addtoSupervisor(supervisor) }
+            tasks.map { it.addToSupervisor(supervisor) }
         }
     }
 
     fun run() {
+        val metadata = metadataFromMap(config)
         val runtime = config["runtime"] as? Map<String, Any>
         requireNotNull(runtime)
-        val conf = SupervisorConfig.fromMap(runtime["supervisor"] as Map<String, Any>)
+        val conf = SupervisorConfig.fromMap(runtime["supervisor"] as Map<String, Any>, metadata)
         val (s, th) = Supervisor.spawnInThread()
         conf.addToSupervisor(s)
         th.join()
