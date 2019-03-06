@@ -108,6 +108,9 @@ class Runtime(private val config: Map<String, Any>) {
             }
             return Runtime(data)
         }
+
+        fun boot(): Runtime =
+            Runtime.fromFile("franz.yaml").also { it.run() }
     }
 
 }
