@@ -15,6 +15,4 @@ dependencies {
     testRuntime("org.junit.jupiter:junit-jupiter-engine:5.3.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.1.0")
     compile(project(":franz-core"))
-    runtime(project(":franz-plugin-retry"))
-    runtime(project(":franz-plugin-kafka"))
 }
