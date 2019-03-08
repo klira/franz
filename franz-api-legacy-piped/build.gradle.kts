@@ -13,5 +13,5 @@ dependencies {
     runtime("ch.qos.logback:logback-classic:1.2.3")
     testCompile("org.junit.jupiter:junit-jupiter-api:5.3.0")
     testRuntime("org.junit.jupiter:junit-jupiter-engine:5.3.0")
-    compileOnly(project(":franz-core"))
+    implementation(project(":franz-core"))
 }
